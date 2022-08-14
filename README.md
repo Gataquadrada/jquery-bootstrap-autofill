@@ -84,8 +84,6 @@ You can extend the plugin's `$.fn.autofill.lang` object for translating.
 | fullWidth         | Boolean       | true    | Makes the `.dropdown-menu` wull width. Nice for mathcing the `<input>` width.                     |
 | values            | Array         | []      | Values to be used.                                                                                |
 
-> NOTE: No RTL support.
-
 <br />
 <br />
 
