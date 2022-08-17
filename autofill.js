@@ -9,6 +9,7 @@
             datasetPostData: {},
             datasetHeaders: {},
             datasetFormatting: null,
+            minCharacters: 3,
             onLoading: null,
             onUpdate: null,
             onSelect: null,
@@ -212,7 +213,10 @@
 
                 list.removeClass("show")
 
-                if (!text.trim()) {
+                if (
+                    !text.trim() ||
+                    text.trim().length < settings.minCharacters
+                ) {
                     return null
                 }
 
