@@ -76,6 +76,7 @@ You can extend the plugin's `$.fn.autofill.lang` object for translating.
 | datasetHeaders    | Object        | { }     | Headers to send during the AJAX call.                                                             |
 | datasetFormatting | NULL/Function | null    | Used to filtering results of the AJAX call. Useful when using external/custom APIs.               |
 | minCharacters     | Int           | 3       | Minimum character length before suggestions are processed.                                        |
+| minDelay          | Int           | 250     | Minimum delay before AJAX suggestions are processed.                                              |
 | onLoading         | NULL/Function | null    | Triggered before the AJAX call.                                                                   |
 | onUpdate          | NULL/Function | null    | Triggered when suggestions are added to the pool.                                                 |
 | onSelect          | NULL/Function | null    | Triggered when a suggestion is either clicked or selected with `Enter` or `Return`.               |

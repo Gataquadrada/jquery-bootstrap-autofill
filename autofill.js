@@ -10,6 +10,7 @@
             datasetHeaders: {},
             datasetFormatting: null,
             minCharacters: 3,
+            minDelay: 250,
             onLoading: null,
             onUpdate: null,
             onSelect: null,
@@ -82,7 +83,14 @@
                     : settings.values
 
             elem.__autofillUpdate = function () {
-                list.empty()
+                list.removeClass("show").empty()
+
+                if (
+                    !elem.val().trim() ||
+                    elem.val().trim().length < settings.minCharacters
+                ) {
+                    return null
+                }
 
                 if (found.size) {
                     found.forEach((v) => {
@@ -149,6 +157,8 @@
                 list.addClass("show")
             }
 
+            elem.__timers = {}
+
             if (settings.values.length) {
                 $.each(settings.values, function (i, v) {
                     suggest.set(v, v)
@@ -213,6 +223,10 @@
 
                 list.removeClass("show")
 
+                try {
+                    clearInterval(elem.__timers)
+                } catch (tErr) {}
+
                 if (
                     !text.trim() ||
                     text.trim().length < settings.minCharacters
@@ -234,54 +248,56 @@
                     found.clear()
                     elem.trigger("autofill-loading")
 
-                    $.ajax({
-                        url: settings.datasetURL,
-                        method: settings.datasetMethod,
-                        data:
-                            typeof function () {} ===
-                            typeof settings.datasetPostData
-                                ? settings.datasetPostData()
-                                : settings.datasetPostData,
-                        dataType: "JSON",
-                        headers: $.extend(
-                            {
-                                Accept: "application/json",
-                            },
-                            settings.datasetHeaders
-                        ),
-                        cache: false,
-                    })
-                        .then((data) => {
-                            if (
+                    elem.__timers = setTimeout(() => {
+                        $.ajax({
+                            url: settings.datasetURL,
+                            method: settings.datasetMethod,
+                            data:
                                 typeof function () {} ===
-                                typeof settings.datasetFormatting
-                            ) {
-                                data = settings.datasetFormatting(data)
-                            }
+                                typeof settings.datasetPostData
+                                    ? settings.datasetPostData()
+                                    : settings.datasetPostData,
+                            dataType: "JSON",
+                            headers: $.extend(
+                                {
+                                    Accept: "application/json",
+                                },
+                                settings.datasetHeaders
+                            ),
+                            cache: false,
+                        })
+                            .then((data) => {
+                                if (
+                                    typeof function () {} ===
+                                    typeof settings.datasetFormatting
+                                ) {
+                                    data = settings.datasetFormatting(data)
+                                }
 
-                            $.each(data, (i, v) => {
-                                found.add({
-                                    id: i,
-                                    object: v,
+                                $.each(data, (i, v) => {
+                                    found.add({
+                                        id: i,
+                                        object: v,
+                                    })
                                 })
+
+                                elem.__autofillUpdate()
                             })
+                            .catch((a, b, c) => {
+                                console.error(a)
+                                console.error(b)
+                                console.error(c)
 
-                            elem.__autofillUpdate()
-                        })
-                        .catch((a, b, c) => {
-                            console.error(a)
-                            console.error(b)
-                            console.error(c)
+                                elem.trigger("autofill-error", a, b, c)
 
-                            elem.trigger("autofill-error", a, b, c)
-
-                            if (
-                                typeof function () {} ===
-                                typeof settings.onError
-                            ) {
-                                settings.onError(a, b, c)
-                            }
-                        })
+                                if (
+                                    typeof function () {} ===
+                                    typeof settings.onError
+                                ) {
+                                    settings.onError(a, b, c)
+                                }
+                            })
+                    }, settings.minDelay)
                 } else {
                     suggest.forEach((v) => {
                         if (settings.itemsLimit <= found.size) {
@@ -318,7 +334,7 @@
                     elem.trigger("focus")
                 })
 
-                list.append(item).addClass("show")
+                list.empty().append(item).addClass("show")
 
                 if (typeof function () {} === typeof settings.onLoading) {
                     settings.onLoading(item)
