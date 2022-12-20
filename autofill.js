@@ -1,6 +1,9 @@
 ;(function ($) {
 	$.fn.autofill = function (options = {}) {
+		const PLUGIN_VERSION = 0.3
+
 		const defaults = {
+			debug: false,
 			autofillSelection: true,
 			itemsLimit: 5,
 			values: [],
@@ -21,6 +24,10 @@
 		}
 
 		const settings = $.extend(defaults, options)
+
+		if (settings.debug) {
+			console.log("[AUTOFILL] PLUGIN_VERSION", PLUGIN_VERSION)
+		}
 
 		return this.each(function () {
 			/*
@@ -255,8 +262,16 @@
 								typeof settings.datasetPostData
 								? settings.datasetPostData()
 								: settings.datasetPostData,
-							{ q: text }
+							{ q: text },
+							settings.debug ? { __v: PLUGIN_VERSION } : {}
 						)
+
+						if (settings.debug) {
+							console.log(
+								"[AUTOFILL] datasetPostData:",
+								datasetPostData
+							)
+						}
 
 						$.ajax({
 							url: settings.datasetURL,
@@ -270,8 +285,29 @@
 								settings.datasetHeaders
 							),
 							cache: false,
+							beforeSend: () => {
+								if (settings.debug) {
+									console.log("[AUTOFILL] AJAX:", {
+										url: settings.datasetURL,
+										method: settings.datasetMethod,
+										data: datasetPostData,
+										dataType: "JSON",
+										headers: $.extend(
+											{
+												Accept: "application/json",
+											},
+											settings.datasetHeaders
+										),
+										cache: false,
+									})
+								}
+							},
 						})
 							.then((data) => {
+								if (settings.debug) {
+									console.log("[AUTOFILL] AJAX result:", data)
+								}
+
 								if (
 									typeof function () {} ===
 									typeof settings.datasetFormatting
@@ -289,6 +325,15 @@
 								elem.__autofillUpdate()
 							})
 							.catch((a, b, c) => {
+								if (settings.debug) {
+									console.log(
+										"[AUTOFILL] AJAX error:",
+										a,
+										b,
+										c
+									)
+								}
+
 								console.error(a)
 								console.error(b)
 								console.error(c)
@@ -319,6 +364,10 @@
 							})
 						}
 					})
+
+					if (settings.debug) {
+						console.log("[AUTOFILL] about to suggest:", found)
+					}
 
 					elem.__autofillUpdate()
 				}
