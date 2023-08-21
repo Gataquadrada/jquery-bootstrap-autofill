@@ -50,10 +50,10 @@ You can extend the plugin's `$.fn.autofill.lang` object for translating.
 
 ```js
 ;(function ($) {
-    $.fn.autofill.lang = {
-        emptyTable: "Nichts zu empfehlen...", // Google translate
-        processing: "Wird bearbeitet...", // Google translate
-    }
+	$.fn.autofill.lang = {
+		emptyTable: "Nichts zu empfehlen...", // Google translate
+		processing: "Wird bearbeitet...", // Google translate
+	}
 })(jQuery) // encapsulating jQuery is a good practice
 ```
 
@@ -148,8 +148,8 @@ Setting a `data-autofill-` attribute will overwrite the [Options](#options) abov
 
 ([Back to top](#summary))
 
--   [Buy me a coffee](https://www.buymeacoffee.com/mazeakin)
--   [Follow me on Twitter](https://twitter.com/mazeakin)
--   [Follow me on Twitch](https://twitch.tv/mazeakin)
+-   [Buy me a coffee](https://www.buymeacoffee.com/gataquadrada)
+-   [Follow me on Twitter](https://twitter.com/gataquadrada)
+-   [Follow me on Twitch](https://twitch.tv/gataquadrada)
 -   [Join my Discord](https://discord.gg/eYfSNQT)
--   [Get sub emotes on my old channel](https://twitch.tv/gataquadrada)
+-   [Get sub emotes on my channel](https://twitch.tv/gataquadrada)
