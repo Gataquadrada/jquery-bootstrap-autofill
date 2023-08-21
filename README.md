@@ -68,6 +68,7 @@ You can extend the plugin's `$.fn.autofill.lang` object for translating.
 
 | Option            | Type          | Default | Description                                                                                       |
 | ----------------- | ------------- | ------- | ------------------------------------------------------------------------------------------------- |
+| debug             | Boolean       | false   | Logs some actions into the console.                                                               |
 | autofillSelection | Boolean       | true    | Fills the `<input>` once a suggestion is picked.                                                  |
 | itemsLimit        | Int           | 5       | Limit of items shown.                                                                             |
 | datasetURL        | String        | ""      | AJAX URL.                                                                                         |

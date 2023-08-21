@@ -1,350 +1,404 @@
 ;(function ($) {
-    $.fn.autofill = function (options = {}) {
-        const defaults = {
-            autofillSelection: true,
-            itemsLimit: 5,
-            values: [],
-            datasetURL: "",
-            datasetMethod: "GET",
-            datasetPostData: {},
-            datasetHeaders: {},
-            datasetFormatting: null,
-            minCharacters: 3,
-            minDelay: 250,
-            onLoading: null,
-            onUpdate: null,
-            onSelect: null,
-            onEmpty: null,
-            onError: null,
-            darkMode: false,
-            fullWidth: true,
-        }
+	$.fn.autofill = function (options = {}) {
+		const PLUGIN_VERSION = 0.3
 
-        const settings = $.extend(defaults, options)
+		const defaults = {
+			debug: false,
+			autofillSelection: true,
+			itemsLimit: 5,
+			values: [],
+			datasetURL: "",
+			datasetMethod: "GET",
+			datasetPostData: {},
+			datasetHeaders: {},
+			datasetFormatting: null,
+			minCharacters: 3,
+			minDelay: 250,
+			onLoading: null,
+			onUpdate: null,
+			onSelect: null,
+			onEmpty: null,
+			onError: null,
+			darkMode: false,
+			fullWidth: true,
+		}
 
-        return this.each(function () {
-            /*
-             * ELEMENTS
-             */
-            const elem = $(this)
-                .attr("autocomplete", "off")
-                .addClass("autofill-input")
-            const container = $(`<div class="dropdown"></div>`)
-            const list = $(
-                `<ul class="dropdown-menu ${
-                    settings.darkMode ? "dropdown-menu-dark" : ""
-                } autofill-dropdown-menu" ${
-                    settings.fullWidth ? `style="width:100%"` : ""
-                }></ul>`
-            )
+		const settings = $.extend(defaults, options)
 
-            container.insertAfter(elem)
-            elem.appendTo(container) //.attr("data-bs-toggle", "dropdown")
-            list.appendTo(container)
+		if (settings.debug) {
+			console.log("[AUTOFILL] PLUGIN_VERSION", PLUGIN_VERSION)
+		}
 
-            /*
-             * DATA HOLDERS
-             */
-            const suggest = new Map()
-            const found = new Set()
-            var previousValue = ""
+		return this.each(function () {
+			/*
+			 * ELEMENTS
+			 */
+			const elem = $(this)
+				.attr("autocomplete", "off")
+				.addClass("autofill-input")
+			const container = $(`<div class="dropdown"></div>`)
+			const list = $(
+				`<ul class="dropdown-menu ${
+					settings.darkMode ? "dropdown-menu-dark" : ""
+				} autofill-dropdown-menu" ${
+					settings.fullWidth ? `style="width:100%"` : ""
+				}></ul>`
+			)
 
-            /*
+			container.insertAfter(elem)
+			elem.appendTo(container) //.attr("data-bs-toggle", "dropdown")
+			list.appendTo(container)
+
+			/*
+			 * DATA HOLDERS
+			 */
+			const suggest = new Map()
+			const found = new Set()
+			var previousValue = ""
+
+			/*
             * LOCAL SETTINGS FROM THE ELEMENT ITSELF
             + Being able to rewrite the global settings of the selector is just an extra
             */
-            settings.datasetURL = elem.data("autofill-dataseturl")
-                ? elem.data("autofill-dataseturl").toString()
-                : settings.datasetURL.toString()
+			settings.datasetURL = elem.data("autofill-dataseturl")
+				? elem.data("autofill-dataseturl").toString()
+				: settings.datasetURL.toString()
 
-            settings.datasetMethod = elem.data("autofill-datasetmethod")
-                ? elem.data("autofill-datasetmethod").toString()
-                : settings.datasetMethod.toString()
+			settings.datasetMethod = elem.data("autofill-datasetmethod")
+				? elem.data("autofill-datasetmethod").toString()
+				: settings.datasetMethod.toString()
 
-            settings.itemsLimit =
-                (elem.data("autofill-itemslimit") &&
-                NaN !== parseInt(elem.data("autofill-itemslimit")) &&
-                parseInt(elem.data("autofill-itemslimit")).toString() ===
-                    elem.data("autofill-itemslimit").toString() &&
-                0 < parseInt(elem.data("autofill-itemslimit"))
-                    ? parseInt(elem.data("autofill-itemslimit"))
-                    : 5) ||
-                parseInt(settings.itemsLimit) ||
-                5
+			settings.itemsLimit =
+				(elem.data("autofill-itemslimit") &&
+				NaN !== parseInt(elem.data("autofill-itemslimit")) &&
+				parseInt(elem.data("autofill-itemslimit")).toString() ===
+					elem.data("autofill-itemslimit").toString() &&
+				0 < parseInt(elem.data("autofill-itemslimit"))
+					? parseInt(elem.data("autofill-itemslimit"))
+					: 5) ||
+				parseInt(settings.itemsLimit) ||
+				5
 
-            settings.autofillSelection =
-                undefined !== elem.data("autofill-autofillselection")
-                    ? Boolean(elem.data("autofill-autofillselection"))
-                    : settings.autofillSelection
+			settings.autofillSelection =
+				undefined !== elem.data("autofill-autofillselection")
+					? Boolean(elem.data("autofill-autofillselection"))
+					: settings.autofillSelection
 
-            settings.values =
-                undefined !== elem.data("autofill-values")
-                    ? elem.data("autofill-values").split("|")
-                    : settings.values
+			settings.values =
+				undefined !== elem.data("autofill-values")
+					? elem.data("autofill-values").split("|")
+					: settings.values
 
-            elem.__autofillUpdate = function () {
-                list.removeClass("show").empty()
+			elem.__autofillUpdate = function () {
+				list.removeClass("show").empty()
 
-                if (
-                    !elem.val().trim() ||
-                    elem.val().trim().length < settings.minCharacters
-                ) {
-                    return null
-                }
+				if (
+					!elem.val().trim() ||
+					elem.val().trim().length < settings.minCharacters
+				) {
+					return null
+				}
 
-                if (found.size) {
-                    found.forEach((v) => {
-                        const item = $(
-                            `<li><a class="dropdown-item" href="#">${v.id.replace(
-                                new RegExp(`(${elem.val()})`, "gmi"),
-                                "<strong>$1</strong>"
-                            )}</a></li>`
-                        )
+				if (found.size) {
+					found.forEach((v) => {
+						const item = $(
+							`<li><a class="dropdown-item" href="#">${v.id.replace(
+								new RegExp(`(${elem.val()})`, "gmi"),
+								"<strong>$1</strong>"
+							)}</a></li>`
+						)
 
-                        item.on("click", function (e) {
-                            e.preventDefault()
-                            e.stopImmediatePropagation()
+						item.on("click", function (e) {
+							e.preventDefault()
+							e.stopImmediatePropagation()
 
-                            list.removeClass("show")
+							list.removeClass("show")
 
-                            if (settings.autofillSelection) {
-                                elem.val(v.id)
-                            } else {
-                                elem.val("")
-                            }
+							if (settings.autofillSelection) {
+								elem.val(v.id)
+							} else {
+								elem.val("")
+							}
 
-                            elem.trigger("focus").trigger(
-                                "autofill-selected",
-                                v
-                            )
+							elem.trigger("focus").trigger(
+								"autofill-selected",
+								v
+							)
 
-                            if (
-                                typeof function () {} ===
-                                typeof settings.onSelect
-                            ) {
-                                settings.onSelect(v, item)
-                            }
-                        })
+							if (
+								typeof function () {} ===
+								typeof settings.onSelect
+							) {
+								settings.onSelect(v, item)
+							}
+						})
 
-                        list.append(item)
-                    })
-                } else {
-                    const item = $(
-                        `<li><a class="dropdown-item disabled" href="#">${$.fn.autofill.lang.emptyTable}</a></li>`
-                    )
+						list.append(item)
+					})
+				} else {
+					const item = $(
+						`<li><a class="dropdown-item disabled" href="#">${$.fn.autofill.lang.emptyTable}</a></li>`
+					)
 
-                    item.on("click", function (e) {
-                        e.preventDefault()
-                        list.removeClass("show")
-                        elem.trigger("focus")
-                    })
+					item.on("click", function (e) {
+						e.preventDefault()
+						list.removeClass("show")
+						elem.trigger("focus")
+					})
 
-                    list.append(item)
+					list.append(item)
 
-                    elem.trigger("autofill-empty", list)
+					elem.trigger("autofill-empty", list)
 
-                    if (typeof function () {} === typeof settings.onEmpty) {
-                        settings.onEmpty(item)
-                    }
-                }
+					if (typeof function () {} === typeof settings.onEmpty) {
+						settings.onEmpty(item)
+					}
+				}
 
-                elem.trigger("autofill-update", list)
+				elem.trigger("autofill-update", list)
 
-                if (typeof function () {} === typeof settings.onUpdate) {
-                    settings.onUpdate(list)
-                }
+				if (typeof function () {} === typeof settings.onUpdate) {
+					settings.onUpdate(list)
+				}
 
-                list.addClass("show")
-            }
+				list.addClass("show")
+			}
 
-            elem.__timers = {}
+			elem.__timers = {}
 
-            if (settings.values.length) {
-                $.each(settings.values, function (i, v) {
-                    suggest.set(v, v)
-                })
-            }
+			if (settings.values.length) {
+				$.each(settings.values, function (i, v) {
+					suggest.set(v, v)
+				})
+			}
 
-            elem.on("keyup", function (e) {
-                if ("ArrowUp" == e.key || "ArrowDown" == e.key) {
-                    if ("ArrowUp" == e.key) {
-                        if (
-                            !list.find("a.active").length ||
-                            list.find(":first-child > a.active").length
-                        ) {
-                            list.find("a.active").removeClass("active")
-                            list.find(":last-child > a").addClass("active")
-                        } else {
-                            list.find("a.active")
-                                .addClass("active-previous")
-                                .parent()
-                                .prev()
-                                .find("a")
-                                .addClass("active")
+			elem.on("keyup", function (e) {
+				if ("ArrowUp" == e.key || "ArrowDown" == e.key) {
+					if ("ArrowUp" == e.key) {
+						if (
+							!list.find("a.active").length ||
+							list.find(":first-child > a.active").length
+						) {
+							list.find("a.active").removeClass("active")
+							list.find(":last-child > a").addClass("active")
+						} else {
+							list.find("a.active")
+								.addClass("active-previous")
+								.parent()
+								.prev()
+								.find("a")
+								.addClass("active")
 
-                            list.find(".active-previous").removeClass(
-                                "active active-previous"
-                            )
-                        }
-                    } else if ("ArrowDown" == e.key) {
-                        if (
-                            !list.find("a.active").length ||
-                            list.find(":last-child > a.active").length
-                        ) {
-                            list.find("a.active").removeClass("active")
-                            list.find(":first-child > a").addClass("active")
-                        } else {
-                            list.find("a.active")
-                                .addClass("active-previous")
-                                .parent()
-                                .next()
-                                .find("a")
-                                .addClass("active")
+							list.find(".active-previous").removeClass(
+								"active active-previous"
+							)
+						}
+					} else if ("ArrowDown" == e.key) {
+						if (
+							!list.find("a.active").length ||
+							list.find(":last-child > a.active").length
+						) {
+							list.find("a.active").removeClass("active")
+							list.find(":first-child > a").addClass("active")
+						} else {
+							list.find("a.active")
+								.addClass("active-previous")
+								.parent()
+								.next()
+								.find("a")
+								.addClass("active")
 
-                            list.find(".active-previous").removeClass(
-                                "active active-previous"
-                            )
-                        }
-                    }
+							list.find(".active-previous").removeClass(
+								"active active-previous"
+							)
+						}
+					}
 
-                    return null
-                } else if (
-                    ("Enter" == e.key || "Return" == e.key) &&
-                    list.find("a.active").length
-                ) {
-                    list.find("a.active").trigger("click")
-                    return null
-                } else if ("Esc" == e.key || "Escape" == e.key) {
-                    list.removeClass("show")
-                    return null
-                }
+					return null
+				} else if (
+					("Enter" == e.key || "Return" == e.key) &&
+					list.find("a.active").length
+				) {
+					list.find("a.active").trigger("click")
+					return null
+				} else if ("Esc" == e.key || "Escape" == e.key) {
+					list.removeClass("show")
+					return null
+				}
 
-                const text = elem.val()
+				const text = elem.val()
 
-                list.removeClass("show")
+				list.removeClass("show")
 
-                try {
-                    clearInterval(elem.__timers)
-                } catch (tErr) {}
+				try {
+					clearInterval(elem.__timers)
+				} catch (tErr) {}
 
-                if (
-                    !text.trim() ||
-                    text.trim().length < settings.minCharacters
-                ) {
-                    return null
-                }
+				if (
+					!text.trim() ||
+					text.trim().length < settings.minCharacters
+				) {
+					return null
+				}
 
-                if (previousValue.trim() == text.trim()) {
-                    list.addClass("show")
-                    return null
-                }
+				if (previousValue.trim() == text.trim()) {
+					list.addClass("show")
+					return null
+				}
 
-                previousValue = text.trim()
+				previousValue = text.trim()
 
-                found.clear()
+				found.clear()
 
-                if (settings.datasetURL) {
-                    // TBA
-                    found.clear()
-                    elem.trigger("autofill-loading")
+				if (settings.datasetURL) {
+					// TBA
+					found.clear()
+					elem.trigger("autofill-loading")
 
-                    elem.__timers = setTimeout(() => {
-                        $.ajax({
-                            url: settings.datasetURL,
-                            method: settings.datasetMethod,
-                            data:
-                                typeof function () {} ===
-                                typeof settings.datasetPostData
-                                    ? settings.datasetPostData()
-                                    : settings.datasetPostData,
-                            dataType: "JSON",
-                            headers: $.extend(
-                                {
-                                    Accept: "application/json",
-                                },
-                                settings.datasetHeaders
-                            ),
-                            cache: false,
-                        })
-                            .then((data) => {
-                                if (
-                                    typeof function () {} ===
-                                    typeof settings.datasetFormatting
-                                ) {
-                                    data = settings.datasetFormatting(data)
-                                }
+					elem.__timers = setTimeout(() => {
+						const datasetPostData = $.extend(
+							{},
+							typeof function () {} ===
+								typeof settings.datasetPostData
+								? settings.datasetPostData()
+								: settings.datasetPostData,
+							{ q: text },
+							settings.debug ? { __v: PLUGIN_VERSION } : {}
+						)
 
-                                $.each(data, (i, v) => {
-                                    found.add({
-                                        id: i,
-                                        object: v,
-                                    })
-                                })
+						if (settings.debug) {
+							console.log(
+								"[AUTOFILL] datasetPostData:",
+								datasetPostData
+							)
+						}
 
-                                elem.__autofillUpdate()
-                            })
-                            .catch((a, b, c) => {
-                                console.error(a)
-                                console.error(b)
-                                console.error(c)
+						$.ajax({
+							url: settings.datasetURL,
+							method: settings.datasetMethod,
+							data: datasetPostData,
+							dataType: "JSON",
+							headers: $.extend(
+								{
+									Accept: "application/json",
+								},
+								settings.datasetHeaders
+							),
+							cache: false,
+							beforeSend: () => {
+								if (settings.debug) {
+									console.log("[AUTOFILL] AJAX:", {
+										url: settings.datasetURL,
+										method: settings.datasetMethod,
+										data: datasetPostData,
+										dataType: "JSON",
+										headers: $.extend(
+											{
+												Accept: "application/json",
+											},
+											settings.datasetHeaders
+										),
+										cache: false,
+									})
+								}
+							},
+						})
+							.then((data) => {
+								if (settings.debug) {
+									console.log("[AUTOFILL] AJAX result:", data)
+								}
 
-                                elem.trigger("autofill-error", a, b, c)
+								if (
+									typeof function () {} ===
+									typeof settings.datasetFormatting
+								) {
+									data = settings.datasetFormatting(data)
+								}
 
-                                if (
-                                    typeof function () {} ===
-                                    typeof settings.onError
-                                ) {
-                                    settings.onError(a, b, c)
-                                }
-                            })
-                    }, settings.minDelay)
-                } else {
-                    suggest.forEach((v) => {
-                        if (settings.itemsLimit <= found.size) {
-                            return null
-                        }
+								$.each(data, (i, v) => {
+									found.add({
+										id: i,
+										object: v,
+									})
+								})
 
-                        if (
-                            v.toLowerCase() !== text.toLowerCase() &&
-                            v.toLowerCase().includes(text.toLowerCase())
-                        ) {
-                            found.add({
-                                id: v,
-                                object: v,
-                            })
-                        }
-                    })
+								elem.__autofillUpdate()
+							})
+							.catch((a, b, c) => {
+								if (settings.debug) {
+									console.log(
+										"[AUTOFILL] AJAX error:",
+										a,
+										b,
+										c
+									)
+								}
 
-                    elem.__autofillUpdate()
-                }
-            })
+								console.error(a)
+								console.error(b)
+								console.error(c)
 
-            /*
+								elem.trigger("autofill-error", a, b, c)
+
+								if (
+									typeof function () {} ===
+									typeof settings.onError
+								) {
+									settings.onError(a, b, c)
+								}
+							})
+					}, settings.minDelay)
+				} else {
+					suggest.forEach((v) => {
+						if (settings.itemsLimit <= found.size) {
+							return null
+						}
+
+						if (
+							v.toLowerCase() == text.toLowerCase() ||
+							v.toLowerCase().includes(text.toLowerCase())
+						) {
+							found.add({
+								id: v,
+								object: v,
+							})
+						}
+					})
+
+					if (settings.debug) {
+						console.log("[AUTOFILL] about to suggest:", found)
+					}
+
+					elem.__autofillUpdate()
+				}
+			})
+
+			/*
             * LOADING EVENT
             - Triggered during AJAX calls
             */
-            elem.on("autofill-loading", function () {
-                const item = $(
-                    `<li><a class="dropdown-item disabled" href="#">${$.fn.autofill.lang.processing}</a></li>`
-                )
+			elem.on("autofill-loading", function () {
+				const item = $(
+					`<li><a class="dropdown-item disabled" href="#">${$.fn.autofill.lang.processing}</a></li>`
+				)
 
-                item.on("click", function (e) {
-                    e.preventDefault()
-                    list.removeClass("show")
-                    elem.trigger("focus")
-                })
+				item.on("click", function (e) {
+					e.preventDefault()
+					list.removeClass("show")
+					elem.trigger("focus")
+				})
 
-                list.empty().append(item).addClass("show")
+				list.empty().append(item).addClass("show")
 
-                if (typeof function () {} === typeof settings.onLoading) {
-                    settings.onLoading(item)
-                }
-            })
-        })
-    }
+				if (typeof function () {} === typeof settings.onLoading) {
+					settings.onLoading(item)
+				}
+			})
+		})
+	}
 
-    $.fn.autofill.lang = {
-        emptyTable: "Nothing to suggest...",
-        processing: "Processing...",
-    }
+	$.fn.autofill.lang = {
+		emptyTable: "Nothing to suggest...",
+		processing: "Processing...",
+	}
 })(jQuery)
